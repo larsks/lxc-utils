@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. /etc/lxc/lxc.conf
+[ -f /etc/lxc/lxc.conf ] && . /etc/lxc/lxc.conf
 
 : ${LXC_DIR:=/lxc}
 : ${LXC_BASE_FS:=${LXC_DIR}/base}
@@ -10,7 +10,7 @@
 PATH=$PATH:$(dirname $0)
 
 while getopts b:d:n ch; do
-	case $OPTARG in
+	case $ch in
 	(b) LXC_BASE_FS=$OPTARG;;
 	(d) LXC_DEVTAB=$OPTARG;;
 	(n) NOCREATE=1;;
@@ -28,7 +28,7 @@ if [ -d "${INSTANCE_DIR}" ]; then
 fi
 
 if [ ! -d "${LXC_BASE_FS}/etc" ]; then
-	echo "ERROR: I don't believe $BASEFS is an OS root directory." >&2
+	echo "ERROR: I don't believe $LXC_BASE_FS is an OS root directory." >&2
 	exit 1
 fi
 

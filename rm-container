@@ -1,5 +1,12 @@
 #!/bin/sh
 
+[ -f /etc/lxc/lxc.conf ] && . /etc/lxc/lxc.conf
+
+: ${LXC_DIR:=/lxc}
+: ${LXC_BASE_FS:=${LXC_DIR}/base}
+: ${LXC_INSTANCE_DIR:=${LXC_DIR}/instance}
+: ${LXC_DEVTAB:=/etc/lxc/devtab}
+
 lxc-destroy -n $1
-rm -rf /lxc/instance/$1
+rm -rf ${LXC_INSTANCE_DIR}/$1
 
