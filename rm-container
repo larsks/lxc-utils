@@ -1,0 +1,5 @@
+#!/bin/sh
+
+lxc-destroy -n $1
+rm -rf /lxc/instance/$1
+
