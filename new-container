@@ -9,7 +9,7 @@
 
 PATH=$PATH:$(dirname $0)
 
-while getopts b: ch; do
+while getopts b:d:n ch; do
 	case $OPTARG in
 	(b) LXC_BASE_FS=$OPTARG;;
 	(d) LXC_DEVTAB=$OPTARG;;
