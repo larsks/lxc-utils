@@ -3,7 +3,7 @@
 . /etc/lxc/lxc.conf
 
 : ${LXC_DIR:=/lxc}
-: ${LXC_BASE_FS:=${LXC_DIR}/FS}
+: ${LXC_BASE_FS:=${LXC_DIR}/base}
 : ${LXC_INSTANCE_DIR:=${LXC_DIR}/instance}
 : ${LXC_DEVTAB:=/etc/lxc/devtab}
 
