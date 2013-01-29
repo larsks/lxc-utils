@@ -65,7 +65,7 @@ EOF
 
 echo "Creating devices."
 lxc-dev-create ${LXC_DEVTAB} ${INSTANCE_DIR}/fs/dev
-lxc-dev-perms >> ${INSTANCE_DIR}/lxc.conf
+lxc-dev-perms ${LXC_DEVTAB} >> ${INSTANCE_DIR}/lxc.conf
 
 cat > ${INSTANCE_DIR}/fstab <<EOF
 # Use this file for mounting additional filesystems
