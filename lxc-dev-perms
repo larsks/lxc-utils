@@ -2,6 +2,11 @@
 
 devtab=$1
 
+if ! [ -f "${devtab}" ]; then
+	echo "ERROR: device table $devtab does not exist." >&2
+	exit 1
+fi
+
 egrep -v '^#|^$' ${devtab} |
 while read dev type major minor mode; do
 	case $type in

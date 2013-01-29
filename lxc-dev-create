@@ -3,6 +3,11 @@
 devtab=$1
 devdir=$2
 
+if ! [ -f "${devtab}" ]; then
+	echo "ERROR: device table $devtab does not exist." >&2
+	exit 1
+fi
+
 if ! [ -d "${devdir}" ]; then
 	echo "ERROR: directory $devdir does not exist." >&2
 	exit 1
