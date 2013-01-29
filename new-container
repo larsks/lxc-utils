@@ -6,14 +6,16 @@
 : ${LXC_BASE_FS:=${LXC_DIR}/base}
 : ${LXC_INSTANCE_DIR:=${LXC_DIR}/instance}
 : ${LXC_DEVTAB:=/etc/lxc/devtab}
+: ${LXC_NETWORK_LINK:=lxc0}
 
 PATH=$PATH:$(dirname $0)
 
-while getopts b:d:n ch; do
+while getopts b:d:i:n ch; do
 	case $ch in
 	(b) LXC_BASE_FS=$OPTARG;;
 	(d) LXC_DEVTAB=$OPTARG;;
 	(n) NOCREATE=1;;
+	(i) INSTANCE_IP=$OPTARG;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -21,6 +23,7 @@ shift $(( $OPTIND - 1 ))
 INSTANCE=$1
 INSTANCE_DIR=${LXC_INSTANCE_DIR}/${INSTANCE}
 INSTANCE_ROOT=${INSTANCE_DIR}/fs/root
+INSTANCE_CONF=${INSTANCE_DIR}/lxc.conf
 
 if [ -d "${INSTANCE_DIR}" ]; then
 	echo "ERROR: $INSTANCE_DIR already exists." >&2
@@ -44,8 +47,8 @@ if ! rsync -a ${LXC_BASE_FS}/var/ ${INSTANCE_DIR}/fs/var/; then
 	exit 1
 fi
 
-echo "Creating lxc.conf."
-cat > ${INSTANCE_DIR}/lxc.conf <<EOF
+echo "Creating $INSTANCE_CONF."
+cat > $INSTANCE_CONF <<EOF
 lxc.utsname = ${INSTANCE}
 lxc.rootfs = ${INSTANCE_ROOT}
 lxc.mount.entry = ${LXC_BASE_FS} ${INSTANCE_ROOT} none defaults,bind 0 0
@@ -55,15 +58,31 @@ lxc.mount.entry = ${INSTANCE_DIR}/fs/tmp ${INSTANCE_ROOT}/tmp none defaults,bind
 lxc.mount = ${INSTANCE_DIR}/fstab
 lxc.cap.drop = mknod
 
-lxc.network.type = empty
-
 lxc.tty = 4
 lxc.pts = 1024
 
-lxc.cgroup.devices.deny = a
 EOF
 
-echo "Creating devices."
+echo "Creating network configuration."
+if ! [ "$INSTANCE_IP" ]; then
+	cat >> $INSTANCE_CONF <<-EOF
+	lxc.network.type = empty
+
+	EOF
+else
+	cat >> $INSTANCE_CONF <<-EOF
+	lxc.network.type = veth
+	lxc.network.link = $LXC_NETWORK_LINK
+	lxc.network.flags = up
+	lxc.network.name = eth0
+	lxc.network.ipv4 = $INSTANCE_IP
+
+	EOF
+fi
+
+
+echo "Creating device configuration."
+echo lxc.cgroup.devices.deny = a >> $INSTANCE_CONF
 lxc-dev-create ${LXC_DEVTAB} ${INSTANCE_DIR}/fs/dev
 lxc-dev-perms ${LXC_DEVTAB} >> ${INSTANCE_DIR}/lxc.conf
 
