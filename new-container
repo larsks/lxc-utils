@@ -13,6 +13,7 @@ while getopts b: ch; do
 	case $OPTARG in
 	(b) LXC_BASE_FS=$OPTARG;;
 	(d) LXC_DEVTAB=$OPTARG;;
+	(n) NOCREATE=1;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -71,6 +72,8 @@ cat > ${INSTANCE_DIR}/fstab <<EOF
 # in this container.
 EOF
 
-echo "Creating container."
-lxc-create -n ${INSTANCE} -f ${INSTANCE_DIR}/lxc.conf
+if [ "$NOCREATE" != 1 ]; then
+	echo "Creating container."
+	lxc-create -n ${INSTANCE} -f ${INSTANCE_DIR}/lxc.conf
+fi
 
