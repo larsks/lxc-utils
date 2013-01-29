@@ -1,49 +1,55 @@
 #!/bin/bash
 
-LXCROOT=/lxc
-BASEFS=/lxc/base
+. /etc/lxc/lxc.conf
+
+: ${LXC_DIR:=/lxc}
+: ${LXC_BASE_FS:=${LXC_DIR}/FS}
+: ${LXC_INSTANCE_DIR:=${LXC_DIR}/instance}
+: ${LXC_DEVTAB:=/etc/lxc/devtab}
 
 while getopts b: ch; do
 	case $OPTARG in
-	(b) BASEFS=$OPTARG;;
+	(b) LXC_BASE_FS=$OPTARG;;
+	(d) LXC_DEVTAB=$OPTARG;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
 
 INSTANCE=$1
-INSTANCEROOT=${LXCROOT}/instance/${INSTANCE}
+INSTANCE_DIR=${LXC_INSTANCE_DIR}/${INSTANCE}
+INSTANCE_ROOT=${INSTANCE_DIR}/fs/root
 
-if [ -d "${INSTANCEROOT}" ]; then
-	echo "ERROR: $INSTANCEROOT already exists." >&2
+if [ -d "${INSTANCE_DIR}" ]; then
+	echo "ERROR: $INSTANCE_DIR already exists." >&2
 	exit 1
 fi
 
-if [ ! -d "${BASEFS}/etc" ]; then
+if [ ! -d "${LXC_BASE_FS}/etc" ]; then
 	echo "ERROR: I don't believe $BASEFS is an OS root directory." >&2
 	exit 1
 fi
 
 echo "Creating new instance $INSTANCE."
-if ! mkdir -p ${INSTANCEROOT}/fs/{root,var,tmp,dev}; then
+if ! mkdir -p ${INSTANCE_DIR}/fs/{root,var,tmp,dev}; then
 	echo "ERROR: Failed to create instance directories." >&2
 	exit 1
 fi
 
 echo "Copying /var."
-if ! rsync -a ${BASEFS}/var/ ${INSTANCEROOT}/fs/var/; then
+if ! rsync -a ${LXC_BASE_FS}/var/ ${INSTANCE_DIR}/fs/var/; then
 	echo "ERROR: Failed to copy /var." >&2
 	exit 1
 fi
 
 echo "Creating lxc.conf."
-cat > ${INSTANCEROOT}/lxc.conf <<EOF
+cat > ${INSTANCE_DIR}/lxc.conf <<EOF
 lxc.utsname = ${INSTANCE}
-lxc.rootfs = ${INSTANCEROOT}/fs/root
-lxc.mount.entry = ${BASEFS} ${INSTANCEROOT}/fs/root none defaults,bind 0 0
-lxc.mount.entry = ${INSTANCEROOT}/fs/dev ${INSTANCEROOT}/fs/root/dev none defaults,bind 0 0
-lxc.mount.entry = ${INSTANCEROOT}/fs/var ${INSTANCEROOT}/fs/root/var none defaults,bind 0 0
-lxc.mount.entry = ${INSTANCEROOT}/fs/tmp ${INSTANCEROOT}/fs/root/tmp none defaults,bind 0 0
-lxc.mount = ${INSTANCEROOT}/fstab
+lxc.rootfs = ${INSTANCE_ROOT}
+lxc.mount.entry = ${LXC_BASE_FS} ${INSTANCE_ROOT} none defaults,bind 0 0
+lxc.mount.entry = ${INSTANCE_DIR}/fs/dev ${INSTANCE_ROOT}/dev none defaults,bind 0 0
+lxc.mount.entry = ${INSTANCE_DIR}/fs/var ${INSTANCE_ROOT}/var none defaults,bind 0 0
+lxc.mount.entry = ${INSTANCE_DIR}/fs/tmp ${INSTANCE_ROOT}/tmp none defaults,bind 0 0
+lxc.mount = ${INSTANCE_DIR}/fstab
 lxc.cap.drop = mknod
 
 lxc.network.type = empty
@@ -55,47 +61,29 @@ lxc.cgroup.devices.deny = a
 EOF
 
 echo "Creating devices."
-cat > ${INSTANCEROOT}/devtab <<EOF
-# device type major minor perm
-initctl   p   -   -   600
-pts       d   -   -   755
-shm       d   -   -   1777
-null      c   1   3   666
-zero      c   1   5   666
-full      c   1   7   666
-random    c   1   8   666
-urandom   c   1   9   666
-tty0      c   4   0   666
-tty1      c   4   1   666
-tty2      c   4   2   666
-tty3      c   4   3   666
-tty       c   5   0   666
-console   c   5   1   600
-ptmx      c   5   2   666
--         c   136 *   -
-EOF
 
-egrep -v '^#|^$' ${INSTANCEROOT}/devtab |
+egrep -v '^#|^$' ${LXC_DEVTAB} |
 while read dev type major minor mode; do
 	case $type in
 		(b|c)	if ! [ "$dev" = "-" ]; then
-				mknod -m $mode ${INSTANCEROOT}/fs/dev/$dev $type $major $minor
+				mknod -m $mode ${INSTANCE_DIR}/fs/dev/$dev \
+					$type $major $minor
 			fi
 
 			echo lxc.cgroup.devices.allow = $type ${major}:${minor} rwm
 			;;
-		(p)	mkfifo -m $mode ${INSTANCEROOT}/fs/dev/$dev
+		(p)	mkfifo -m $mode ${INSTANCE_DIR}/fs/dev/$dev
 			;;
-		(d)	mkdir -m $mode ${INSTANCEROOT}/fs/dev/$dev
+		(d)	mkdir -m $mode ${INSTANCE_DIR}/fs/dev/$dev
 			;;
 	esac
-done >> ${INSTANCEROOT}/lxc.conf
+done >> ${INSTANCE_DIR}/lxc.conf
 
-cat > ${INSTANCEROOT}/fstab <<EOF
+cat > ${INSTANCE_DIR}/fstab <<EOF
 # Use this file for mounting additional filesystems
 # in this container.
 EOF
 
 echo "Creating container."
-lxc-create -n ${INSTANCE} -f ${INSTANCEROOT}/lxc.conf
+lxc-create -n ${INSTANCE} -f ${INSTANCE_DIR}/lxc.conf
 
