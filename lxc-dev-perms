@@ -1,0 +1,12 @@
+#!/bin/sh
+
+devtab=$1
+
+egrep -v '^#|^$' ${devtab} |
+while read dev type major minor mode; do
+	case $type in
+		(b|c)	echo lxc.cgroup.devices.allow = $type ${major}:${minor} rwm
+			;;
+	esac
+done
+

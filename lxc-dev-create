@@ -1,0 +1,25 @@
+#!/bin/sh
+
+devtab=$1
+devdir=$2
+
+if ! [ -d "${devdir}" ]; then
+	echo "ERROR: directory $devdir does not exist." >&2
+	exit 1
+fi
+
+egrep -v '^#|^$' ${devtab} |
+while read dev type major minor mode; do
+	case $type in
+		(b|c)	if ! [ "$dev" = "-" ]; then
+				mknod -m $mode ${devdir}/$dev \
+					$type $major $minor
+			fi
+			;;
+		(p)	mkfifo -m $mode ${devdir}/$dev
+			;;
+		(d)	mkdir -m $mode ${devdir}/$dev
+			;;
+	esac
+done
+

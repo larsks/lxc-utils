@@ -7,6 +7,8 @@
 : ${LXC_INSTANCE_DIR:=${LXC_DIR}/instance}
 : ${LXC_DEVTAB:=/etc/lxc/devtab}
 
+PATH=$PATH:$(dirname $0)
+
 while getopts b: ch; do
 	case $OPTARG in
 	(b) LXC_BASE_FS=$OPTARG;;
@@ -61,23 +63,8 @@ lxc.cgroup.devices.deny = a
 EOF
 
 echo "Creating devices."
-
-egrep -v '^#|^$' ${LXC_DEVTAB} |
-while read dev type major minor mode; do
-	case $type in
-		(b|c)	if ! [ "$dev" = "-" ]; then
-				mknod -m $mode ${INSTANCE_DIR}/fs/dev/$dev \
-					$type $major $minor
-			fi
-
-			echo lxc.cgroup.devices.allow = $type ${major}:${minor} rwm
-			;;
-		(p)	mkfifo -m $mode ${INSTANCE_DIR}/fs/dev/$dev
-			;;
-		(d)	mkdir -m $mode ${INSTANCE_DIR}/fs/dev/$dev
-			;;
-	esac
-done >> ${INSTANCE_DIR}/lxc.conf
+lxc-dev-create ${LXC_DEVTAB} ${INSTANCE_DIR}/fs/dev
+lxc-dev-perms >> ${INSTANCE_DIR}/lxc.conf
 
 cat > ${INSTANCE_DIR}/fstab <<EOF
 # Use this file for mounting additional filesystems
