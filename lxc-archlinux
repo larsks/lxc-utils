@@ -152,6 +152,7 @@ configure_arch () {
 	done
 
 	if [ "$authorized_keys" ]; then
+		echo "Installing ${authorized_keys} /root/.ssh/authorized_keys."
 		install -d -m 700 ${rootfs_path}/root/.ssh
 		install -m 600 ${authorized_keys} \
 			${rootfs_path}/root/.ssh/authorized_keys
