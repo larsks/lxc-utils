@@ -59,11 +59,13 @@ usage ()
 	  packages to install.
 
 	EOF
-	return 0
 }
 
 # Install Arch Linux into ${rootfs_path}.  We always install the
-# "lxc" package because this is required to run lxc-execute.
+# "lxc" package because this is required to run lxc-execute. The
+# `-c` option causes it to use the package cache on the host rather
+# than on the container, which allows it to re-use the cache when
+# creating multiple containers.
 install_arch () {
 	mkdir -p ${rootfs_path}
 	pacstrap -c ${rootfs_path} base lxc ${additional_packages//,/ }
@@ -102,6 +104,9 @@ generate_lxc_conf () {
 
 	# Then grant access to specific devices.
 	$(generate_device_permissions)
+
+	# End of $(basename $0).
+
 	EOF
 }
 
@@ -131,9 +136,15 @@ create_device_nodes () {
 configure_arch () {
 	create_device_nodes ||
 		die "Failed to create entries in /dev."
+
+	for service in ${enable_services//,/ }; do
+		service=${service%.service}
+		echo "Enabling service $service"
+		chroot ${rootfs_path} /usr/bin/systemctl enable ${service}.service
+	done
 }
 
-options=$(getopt -o hp:P:n: -l help,path:,packages:,name: -- "${@}")
+options=$(getopt -o hp:P:S:n: -l help,services:,path:,packages:,name: -- "${@}")
 if [ ${?} -ne 0 ]; then
 	usage >&2
 	exit 1
@@ -147,6 +158,7 @@ do
 	-p|--path)      path=${2}; shift 2;;
 	-n|--name)      name=${2}; shift 2;;
 	-P|--packages)  additional_packages=${2}; shift 2;;
+	-S|--services)  enable_services=${2}; shift 2;;
 	--)             shift 1; break ;;
 	*)              break ;;
 	esac
