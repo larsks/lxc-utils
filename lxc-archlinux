@@ -83,6 +83,14 @@ generate_device_permissions () {
 }
 
 generate_lxc_conf () {
+	# We reference "fstab" in lxc.conf so it needs to exist.
+	if ! [ -f "${path}/fstab" ]; then
+		cat >${path}/fstab <<-EOF
+		# Use this file to specify mounts for your
+		# container.
+		EOF
+	fi
+
 	# We *append* to ${config_path} because the user may have
 	# provided a configuration file to lxc-create using "-f", and
 	# we don't want to overwrite that information.
@@ -142,9 +150,15 @@ configure_arch () {
 		echo "Enabling service $service"
 		chroot ${rootfs_path} /usr/bin/systemctl enable ${service}.service
 	done
+
+	if [ "$authorized_keys" ]; then
+		install -d -m 700 ${rootfs_path}/root/.ssh
+		install -m 600 ${authorized_keys} \
+			${rootfs_path}/root/.ssh/authorized_keys
+	fi
 }
 
-options=$(getopt -o hp:P:S:n: -l help,services:,path:,packages:,name: -- "${@}")
+options=$(getopt -o hp:P:S:K:n: -l help,services:,path:,authorized-keys:,packages:,name: -- "${@}")
 if [ ${?} -ne 0 ]; then
 	usage >&2
 	exit 1
@@ -159,6 +173,8 @@ do
 	-n|--name)      name=${2}; shift 2;;
 	-P|--packages)  additional_packages=${2}; shift 2;;
 	-S|--services)  enable_services=${2}; shift 2;;
+	-K|--authorized-keys)
+			authorized_keys=${2}; shift 2;;
 	--)             shift 1; break ;;
 	*)              break ;;
 	esac
