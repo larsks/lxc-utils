@@ -1,0 +1,49 @@
+#!/bin/bash
+
+set -u
+
+: ${LIBVIRT_DEFAULT_URI:=lxc:///}
+
+LXC_BASE_DIR=/srv/lxc
+LXC_BASE_FS=/dev/lxc/arch-base
+LXC_MEMORY=512
+LXC_FSSIZE=5g
+LXC_NETWORK=network=default
+
+MODE=abort
+
+prog=$(basename $0)
+skip_create_domain=0
+skip_create_lv=0
+
+die () {
+	echo "$prog: ERROR: $*" >&2
+	exit 1
+}
+
+OPTS=$(
+	getopt -o r:s:d:b:w:KF \
+		--long lxc-dir:,base:,memory:,fssize:,network:,keep,force \
+		-n "${prog}" -- "$@"
+	)
+
+eval set -- "$OPTS"
+
+while :; do
+	case "$1" in
+		-b|--base) LXC_BASE_FS="$2"; shift 2;;
+		-d|--lxc-dir) LXC_BASE_DIR="$2"; shift 2;;
+
+		--) shift; break;;
+	esac
+done
+
+name=$1
+root_mount=${LXC_BASE_DIR}/${name}
+root_dev=${LXC_BASE_FS%/*}/${name}-root
+
+virsh destroy ${name}
+virsh undefine ${name}
+umount ${root_mount}
+lvremove -f ${root_dev}
+
