@@ -1,0 +1,18 @@
+[Unit]
+Description=LXC virtual host %I
+Requires=libvirtd.service
+After=libvirtd.service
+#ConditionPathExists=/dev/lxc/$I
+
+[Service]
+Environment=LIBVIRT_DEFAULT_URI=lxc:///
+ExecStartPre=/usr/bin/mkdir -p /srv/lxc/%I
+ExecStartPre=/bin/mount /dev/lxc/%i-root /srv/lxc/%I
+ExecStart=/usr/bin/virsh start %I
+RemainAfterExit=yes
+ExecStop=/usr/bin/virsh destroy %I
+ExecStopPost=/bin/umount /srv/lxc/%I
+
+[Install]
+WantedBy=multi-user.target
+

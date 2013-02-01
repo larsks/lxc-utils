@@ -12,9 +12,9 @@ done
 shift $(( $OPTIND - 1 ))
 
 sysctl=$1
-value=$2
 sysctlpath=/var/lib/sysctl-mask/$sysctl
 procpath=/proc/sys/${sysctl//.//}
+value=${2:-$(cat $procpath)}
 
 if [ ! -e "$procpath" ]; then
 	echo "$0: error: $procpath does not exist." >&2
