@@ -10,7 +10,11 @@ LXC_MEMORY=512
 LXC_FSSIZE=5g
 LXC_NETWORK=network=default
 
+MODE=abort
+
 prog=$(basename $0)
+skip_create_domain=0
+skip_create_lv=0
 
 die () {
 	echo "$prog: ERROR: $*" >&2
@@ -18,11 +22,11 @@ die () {
 }
 
 create_snapshot () {
-	if ! lvs ${root_dev} > /dev/null 2>&1; then
+	if [ "$skip_create_lv" = 1 ]; then
+		echo "Using existing ${root_dev}."
+	else
 		echo "Creating ${root_dev} from ${LXC_BASE_FS}."
 		lvcreate -L $LXC_FSSIZE -n ${name}-root -s $LXC_BASE_FS
-	else
-		echo "Using existing ${root_dev}."
 	fi
 }
 
@@ -33,16 +37,21 @@ mount_snapshot () {
 }
 
 create_container () {
-	echo "Creating container ${name}."
-	virt-install -n ${name} -r ${LXC_MEMORY} \
-		-w ${LXC_NETWORK} \
-		--filesystem ${root_mount},/ --print-xml |
-	virsh define /dev/stdin
+	if [ "$skip_create_domain" = 1 ]; then
+		echo "Using existing container ${name}."
+	else
+		echo "Creating container ${name}."
+		virt-install -n ${name} -r ${LXC_MEMORY} \
+			-w ${LXC_NETWORK} \
+			--filesystem ${root_mount},/ --print-xml |
+		virsh define /dev/stdin
+	fi
 }
 
 configure_container () {
 	echo "Configuring ${name}."
 	echo ${name} > ${root_mount}/etc/hostname
+	systemd-nspawn -D ${root_mount} ssh-keygen -A
 }
 
 unmount_snapshot () {
@@ -51,8 +60,8 @@ unmount_snapshot () {
 }
 
 OPTS=$(
-	getopt -o r:s:d:b:w: \
-		--long lxc-dir:,base:,memory:,fssize:,network: \
+	getopt -o r:s:d:b:w:KF \
+		--long lxc-dir:,base:,memory:,fssize:,network:,keep,force \
 		-n "${prog}" -- "$@"
 	)
 
@@ -65,6 +74,8 @@ while :; do
 		-r|--memory) LXC_MEMORY=$2; shift 2;;
 		-s|--fssize) LXC_FSSIZE=$2; shift 2;;
 		-w|--network) LXC_NETWORK=$2; shift 2;;
+		-K|--keep) MODE=keep; shift;;
+		-F|--force) MODE=force; shift;;
 
 		--) shift; break;;
 	esac
@@ -77,6 +88,31 @@ root_dev=${LXC_BASE_FS%/*}/${name}-root
 [ "$name" ] || die "you must specify a container name."
 [ -d "$root_mount" ] && [ "$(ls -A ${root_mount})" ] &&
 	die "directory ${root_mount} exists and is not empty."
+
+if virsh domid ${name} > /dev/null 2>&1; then
+	case $MODE in
+	abort)	die "found existing container ${name}.  Use --keep to use it or --force to replace it."
+		;;
+	force)	echo "Deleting existing container ${name}."
+		virsh destroy ${name}
+		virsh undefine ${name}
+		;;
+	keep)	skip_create_domain=1
+		;;
+	esac
+fi
+
+if lvs ${root_dev} > /dev/null 2>&1; then
+	case $MODE in
+	abort)	die "found existing device ${root_dev}.  Use --keep to use it or --force to replace it."
+		;;
+	force)	echo "Deleting existing LV ${root_dev}."
+		lvremove -f ${root_dev}
+		;;
+	keep)	skip_create_lv=1
+		;;
+	esac
+fi
 
 set -e
 
