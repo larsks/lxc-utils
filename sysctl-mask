@@ -1,0 +1,32 @@
+#!/bin/bash
+#
+# usage: sysctl-mask [-u] <sysctl> [<value>]
+
+mode=MASK
+
+while getopts u ch; do
+	case $ch in
+	(u) mode=UNMASK;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+sysctl=$1
+value=$2
+sysctlpath=/var/lib/sysctl-mask/$sysctl
+procpath=/proc/sys/${sysctl//.//}
+
+if [ ! -e "$procpath" ]; then
+	echo "$0: error: $procpath does not exist." >&2
+	exit 1
+fi
+
+if [ "$mode" = MASK ]; then
+	echo "$0: masking $sysctl"
+	echo $value > $sysctlpath
+	mount -o bind $sysctlpath $procpath
+elif [ "$mode" = UNMASK ]; then
+	echo "$0: unmasking $sysctl"
+	umount $procpath
+fi
+
