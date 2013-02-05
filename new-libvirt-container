@@ -60,8 +60,8 @@ unmount_snapshot () {
 }
 
 OPTS=$(
-	getopt -o r:s:d:b:w:KF \
-		--long lxc-dir:,base:,memory:,fssize:,network:,keep,force \
+	getopt -o hr:s:d:b:w:KF \
+		--long help,lxc-dir:,base:,memory:,fssize:,network:,keep,force \
 		-n "${prog}" -- "$@"
 	)
 
@@ -69,6 +69,7 @@ eval set -- "$OPTS"
 
 while :; do
 	case "$1" in
+		-h|--help) usage; exit;;
 		-b|--base) LXC_BASE_FS="$2"; shift 2;;
 		-d|--lxc-dir) LXC_BASE_DIR="$2"; shift 2;;
 		-r|--memory) LXC_MEMORY=$2; shift 2;;
@@ -78,12 +79,16 @@ while :; do
 		-F|--force) MODE=force; shift;;
 
 		--) shift; break;;
+
+		*) usage >&1; die "invalid usage";;
 	esac
 done
 
 name=$1
 root_mount=${LXC_BASE_DIR}/${name}
 root_dev=${LXC_BASE_FS%/*}/${name}-root
+
+exit
 
 [ "$name" ] || die "you must specify a container name."
 [ -d "$root_mount" ] && [ "$(ls -A ${root_mount})" ] &&
