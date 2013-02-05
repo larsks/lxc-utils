@@ -68,12 +68,15 @@ usage () {
 	  $prg --help
 	  $prg [-r <memory>] [-s <fssize>] [-b <base>] [-w <network>] [-K|-F]
 	EOF
+}
 
 OPTS=$(
 	getopt -o hr:s:d:b:w:KF \
 		--long help,lxc-dir:,base:,memory:,fssize:,network:,keep,force \
 		-n "${prog}" -- "$@"
 	)
+
+[ $? -eq 0 ] || { usage >&2; exit 2; }
 
 eval set -- "$OPTS"
 
