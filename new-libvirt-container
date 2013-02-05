@@ -59,6 +59,16 @@ unmount_snapshot () {
 	umount ${root_mount}
 }
 
+usage () {
+	prg=$(basename $0)
+
+	cat <<-EOF
+	$prg: usage:
+
+	  $prg --help
+	  $prg [-r <memory>] [-s <fssize>] [-b <base>] [-w <network>] [-K|-F]
+	EOF
+
 OPTS=$(
 	getopt -o hr:s:d:b:w:KF \
 		--long help,lxc-dir:,base:,memory:,fssize:,network:,keep,force \
