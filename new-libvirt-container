@@ -101,8 +101,6 @@ name=$1
 root_mount=${LXC_BASE_DIR}/${name}
 root_dev=${LXC_BASE_FS%/*}/${name}-root
 
-exit
-
 [ "$name" ] || die "you must specify a container name."
 [ -d "$root_mount" ] && [ "$(ls -A ${root_mount})" ] &&
 	die "directory ${root_mount} exists and is not empty."
